@@ -73,29 +73,32 @@ nohup jupyter lab \
   --ip=0.0.0.0 \
   --port="${PORT}" \
   --notebook-dir="${PROJECT_DIR}" \
+  --ServerApp.token='' \
+  --ServerApp.password='' \
+  --ServerApp.disable_check_xsrf=True \
+  --ServerApp.allow_origin='*' \
   >"${LOGFILE}" 2>&1 &
 
-warn "listening on 0.0.0.0 — reachable from your LAN. Use a strong token or a firewall."
+warn "auth DISABLED and bound to 0.0.0.0 — anyone on your network can run code as you."
+warn "only use this on a trusted LAN, behind a firewall, or over an SSH tunnel."
 
 JUPYTER_PID=$!
 echo "${JUPYTER_PID}" > "${PIDFILE}"
 log "pid ${JUPYTER_PID} (logs: ${LOGFILE})"
 
-# --- 4. Wait for the server to print its URL, then open the notebook --------
-URL=""
+# --- 4. Wait for the server to start, then open the notebook ---------------
 for _ in $(seq 1 30); do
-  URL="$(grep -Eo 'https?://(127\.0\.0\.1|localhost):[0-9]+/lab\?token=[A-Za-z0-9]+' "${LOGFILE}" | head -n1 || true)"
-  [[ -n "${URL}" ]] && break
+  grep -qE 'Jupyter Server .* is running|ServerApp.*running at' "${LOGFILE}" && break
   sleep 1
 done
 
-if [[ -z "${URL}" ]]; then
-  warn "did not see a URL in ${LOGFILE} after 30s; tailing last lines:"
+if ! grep -qE 'Jupyter Server .* is running|ServerApp.*running at' "${LOGFILE}"; then
+  warn "jupyter did not start within 30s; tailing last lines:"
   tail -n 20 "${LOGFILE}" || true
   die "jupyter failed to start"
 fi
 
-NOTEBOOK_URL="${URL/\/lab?/\/lab/tree/${NOTEBOOK}?}"
+NOTEBOOK_URL="http://localhost:${PORT}/lab/tree/${NOTEBOOK}"
 log "ready: ${NOTEBOOK_URL}"
 
 if [[ "$(uname -s)" == "Darwin" ]] && command -v open >/dev/null 2>&1; then
