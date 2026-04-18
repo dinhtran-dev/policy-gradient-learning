@@ -70,10 +70,12 @@ log "launching JupyterLab on port ${PORT}"
 
 nohup jupyter lab \
   --no-browser \
-  --ip=127.0.0.1 \
+  --ip=0.0.0.0 \
   --port="${PORT}" \
   --notebook-dir="${PROJECT_DIR}" \
   >"${LOGFILE}" 2>&1 &
+
+warn "listening on 0.0.0.0 — reachable from your LAN. Use a strong token or a firewall."
 
 JUPYTER_PID=$!
 echo "${JUPYTER_PID}" > "${PIDFILE}"
@@ -82,7 +84,7 @@ log "pid ${JUPYTER_PID} (logs: ${LOGFILE})"
 # --- 4. Wait for the server to print its URL, then open the notebook --------
 URL=""
 for _ in $(seq 1 30); do
-  URL="$(grep -Eo 'https?://127\.0\.0\.1:[0-9]+/lab\?token=[A-Za-z0-9]+' "${LOGFILE}" | head -n1 || true)"
+  URL="$(grep -Eo 'https?://(127\.0\.0\.1|localhost):[0-9]+/lab\?token=[A-Za-z0-9]+' "${LOGFILE}" | head -n1 || true)"
   [[ -n "${URL}" ]] && break
   sleep 1
 done
